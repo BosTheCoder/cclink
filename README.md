@@ -101,6 +101,7 @@ run by hand. That is also what a phone gets.
 | `ccl.py` | The codec, the session lookup, and the CLI, for the terminal. Stdlib only. |
 | `ccode-resume` | What Windows calls into. Sources the recorded env, then hands off to `ccl.py`. |
 | `windows/` | The `ccode://` handler and its installer. |
+| `dns.sh` | Points the `CNAME` hostname at Pages on Cloudflare. Idempotent. |
 | `fixtures.json` | The contract between the two codecs. |
 
 The codec exists twice because a no-backend design cannot share a runtime.
@@ -124,6 +125,17 @@ opens a tab. Nothing but clicking a link proves that.
 GitHub Pages from `main`, custom domain via `CNAME`, scaffolded and deployed
 with [demo-tools](https://github.com/BosTheCoder/demo-tools) (`html` stack,
 `pages` target) — `just deploy`, `just status`.
+
+demo-tools automates DNS for its `fly` target but only *prints* the record for
+`pages`, so `dns.sh` applies it:
+
+```sh
+with-secrets ./dns.sh --check   # what the record is now
+with-secrets ./dns.sh           # make it match
+```
+
+It forces `proxied=false`. A proxied record breaks GitHub's certificate
+issuance, and the symptom is "http works, https does not" up to an hour later.
 
 The repo is public. It holds no secrets and no session ids — those exist only
 in fragments, which are never sent anywhere, and in `.ccode-env`, which is not
