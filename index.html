@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>cclink</title>
+<link rel="stylesheet" href="app.css">
+<link rel="icon" href="icon-192.png">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="apple-touch-icon" href="./icon-192.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+</head>
+<body>
+<main>
+  <h1>cclink</h1>
+  <p>Plain HTML, JS and CSS. No build step — edit these files and reload.</p>
+  <button id="ping" type="button">Say hello</button>
+  <p id="out" aria-live="polite"></p>
+</main>
+<script type="module" src="app.js"></script>
+<script>
+  // Non-fatal by design: without the worker the app still runs, it just loses
+  // its offline fallback.
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", function () {
+      navigator.serviceWorker.register("sw.js").catch(function () {});
+    });
+  }
+</script>
+</body>
+</html>

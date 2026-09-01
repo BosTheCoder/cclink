@@ -1,0 +1,14 @@
+node_modules/
+.next/
+dist/
+build/
+__pycache__/
+*.py[cod]
+.venv/
+.env
+.env*
+*.db
+.DS_Store
+
+# local target: host bind-mount for the container's persistent data (SQLite)
+data/
