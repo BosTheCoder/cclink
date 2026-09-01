@@ -1,0 +1,55 @@
+{
+  "_comment": "The contract between ccl.py and cclink.js. Both test suites assert against this, so a regex that drifts on one side fails the other side's tests instead of silently producing links that only work in one direction. Ids are normalised to lowercase before validation, so a hand-typed uppercase id still works; lowercasing cannot introduce a shell metacharacter. `extractable` covers the lenient front door: free text pasted from a note, out of which the first UUID-shaped run is pulled and then validated normally. `rejected` is what parse() must refuse \u2014 it guards the redirect and the launcher. `extract_rejected` is the subset that has no well-formed id anywhere in it; extract() is allowed to pull an id out of surrounding junk because its output is a link, never a command.",
+  "base": "https://cc.buildwithbos.com",
+  "valid": [
+    {
+      "id": "01128a7a-ff8a-4ebd-bbca-4c2b16992599",
+      "uri": "ccode://resume/01128a7a-ff8a-4ebd-bbca-4c2b16992599",
+      "link": "https://cc.buildwithbos.com/#s=01128a7a-ff8a-4ebd-bbca-4c2b16992599"
+    },
+    {
+      "id": "030490ba-1773-53e4-8548-c403d5d7d9ba",
+      "uri": "ccode://resume/030490ba-1773-53e4-8548-c403d5d7d9ba",
+      "link": "https://cc.buildwithbos.com/#s=030490ba-1773-53e4-8548-c403d5d7d9ba"
+    }
+  ],
+  "accepted_variants": [
+    "ccode://resume/01128a7a-ff8a-4ebd-bbca-4c2b16992599/",
+    "https://cc.buildwithbos.com/#s=01128a7a-ff8a-4ebd-bbca-4c2b16992599",
+    "01128a7a-ff8a-4ebd-bbca-4c2b16992599",
+    "01128A7A-FF8A-4EBD-BBCA-4C2B16992599"
+  ],
+  "rejected": [
+    "",
+    "not-a-uuid",
+    "01128a7a-ff8a-4ebd-bbca-4c2b169925990",
+    "../../../etc/passwd",
+    "01128a7a-ff8a-4ebd-bbca-4c2b16992599; rm -rf ~",
+    "$(id)",
+    "`id`",
+    "01128a7a ff8a 4ebd bbca 4c2b16992599",
+    "ccode://resume/../../etc/passwd",
+    "javascript:alert(1)",
+    "file:///etc/passwd",
+    "https://evil.example/#s=01128a7a-ff8a-4ebd-bbca-4c2b16992599"
+  ],
+  "extractable": [
+    "c --resume 01128a7a-ff8a-4ebd-bbca-4c2b16992599",
+    "    - `c --resume 01128a7a-ff8a-4ebd-bbca-4c2b16992599`",
+    "c --resume 01128a7a-ff8a-4ebd-bbca-4c2b16992599",
+    "ccode://resume/01128a7a-ff8a-4ebd-bbca-4c2b16992599",
+    "https://cc.buildwithbos.com/#s=01128a7a-ff8a-4ebd-bbca-4c2b16992599"
+  ],
+  "extract_rejected": [
+    "",
+    "not-a-uuid",
+    "01128a7a-ff8a-4ebd-bbca-4c2b169925990",
+    "../../../etc/passwd",
+    "$(id)",
+    "`id`",
+    "01128a7a ff8a 4ebd bbca 4c2b16992599",
+    "ccode://resume/../../etc/passwd",
+    "javascript:alert(1)",
+    "file:///etc/passwd"
+  ]
+}

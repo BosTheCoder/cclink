@@ -1,0 +1,41 @@
+# The Windows end of the ccode:// handler. Registered against
+# HKCU\Software\Classes\ccode; Windows hands it the clicked URI as -Uri.
+#
+# Rendered from ccode-open.ps1.in by install.sh, which fills in the WSL distro
+# and launcher path. Edit the .in file, not this one.
+[CmdletBinding()]
+param([Parameter(Mandatory = $true)][string]$Uri)
+
+$ErrorActionPreference = 'Stop'
+
+$distro   = '__DISTRO__'
+$launcher = '__LAUNCHER__'
+
+# Match, then rebuild from the capture. The URI string itself is never
+# forwarded to wt.exe — only the session id that came out of this pattern — so
+# a crafted link cannot smuggle a ';' into a Windows Terminal command line
+# (wt splits on it) no matter what survived the registry's quoting.
+$pattern = '^ccode://resume/([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})/?$'
+$match = [regex]::Match($Uri.Trim(), $pattern)
+
+if (-not $match.Success) {
+    Add-Type -AssemblyName System.Windows.Forms
+    [System.Windows.Forms.MessageBox]::Show(
+        "Not a Claude Code session link:`n`n$Uri",
+        'cclink', 'OK', 'Warning') | Out-Null
+    exit 1
+}
+
+$id = $match.Groups[1].Value.ToLowerInvariant()
+
+# -w 0 targets the most recently used window: a new tab if Windows Terminal is
+# already open, a new window if it is not.
+#
+# Every element here is space-free by construction: Start-Process joins the
+# list with spaces and does not quote, so a title like "claude 0112" would be
+# read by wt as the end of --title and the start of the command to run.
+Start-Process -FilePath 'wt.exe' -ArgumentList @(
+    '-w', '0', 'nt',
+    '--title', "claude-$($id.Substring(0,8))",
+    'wsl.exe', '-d', $distro, '--', $launcher, $id
+)

@@ -12,3 +12,6 @@ __pycache__/
 
 # local target: host bind-mount for the container's persistent data (SQLite)
 data/
+
+# Written by windows/install.sh — machine-specific PATH, not shareable.
+.ccode-env

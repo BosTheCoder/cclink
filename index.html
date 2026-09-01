@@ -3,30 +3,164 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
 <title>cclink</title>
-<link rel="stylesheet" href="app.css">
-<link rel="icon" href="icon-192.png">
-<link rel="manifest" href="./manifest.webmanifest">
-<link rel="apple-touch-icon" href="./icon-192.png">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #fbfbfa; --fg: #1c1b19; --muted: #6b6862;
+    --card: #ffffff; --line: #e4e1db; --accent: #b5541f;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #171614; --fg: #e9e6e1; --muted: #94908a;
+            --card: #1f1e1b; --line: #34322e; --accent: #e08a4e; }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 2.5rem 1.25rem; background: var(--bg); color: var(--fg);
+    font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    display: flex; justify-content: center;
+  }
+  main { width: 100%; max-width: 34rem; }
+  h1 { font-size: 1.15rem; margin: 0 0 .25rem; letter-spacing: -.01em; }
+  .sub { color: var(--muted); margin: 0 0 1.75rem; font-size: .9rem; }
+  .card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+    padding: 1.1rem 1.2rem; margin-bottom: .85rem;
+  }
+  .label { font-size: .72rem; text-transform: uppercase; letter-spacing: .07em;
+           color: var(--muted); margin-bottom: .5rem; }
+  code, textarea, .out {
+    font-family: ui-monospace, SFMono-Regular, "Cascadia Mono", Menlo, monospace;
+    font-size: .84rem;
+  }
+  .out { word-break: break-all; margin: 0; }
+  textarea {
+    width: 100%; min-height: 4.5rem; resize: vertical; padding: .65rem .7rem;
+    background: var(--bg); color: var(--fg);
+    border: 1px solid var(--line); border-radius: 7px;
+  }
+  textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  .row { display: flex; gap: .5rem; align-items: center; margin-top: .6rem; flex-wrap: wrap; }
+  button {
+    font: inherit; font-size: .82rem; padding: .35rem .8rem; cursor: pointer;
+    background: var(--card); color: var(--fg);
+    border: 1px solid var(--line); border-radius: 6px;
+  }
+  button:hover { border-color: var(--accent); color: var(--accent); }
+  a { color: var(--accent); }
+  .err { color: var(--accent); }
+  [hidden] { display: none !important; }
+  footer { color: var(--muted); font-size: .78rem; margin-top: 1.5rem; }
+</style>
 </head>
 <body>
 <main>
   <h1>cclink</h1>
-  <p>Plain HTML, JS and CSS. No build step — edit these files and reload.</p>
-  <button id="ping" type="button">Say hello</button>
-  <p id="out" aria-live="polite"></p>
+  <p class="sub" id="sub">Resume a Claude Code session from a link.</p>
+
+  <!-- Bounce view: shown when the URL carries #s=<id> -->
+  <section id="bounce" hidden>
+    <div class="card">
+      <div class="label">Opening session</div>
+      <p class="out" id="bounce-id"></p>
+      <div class="row">
+        <a id="bounce-link" href="#">Open it now</a>
+        <span class="sub" style="margin:0">if nothing happened</span>
+      </div>
+    </div>
+    <div class="card">
+      <div class="label">Or run it yourself</div>
+      <p class="out" id="bounce-cmd"></p>
+      <div class="row"><button data-copy="bounce-cmd">Copy command</button></div>
+    </div>
+    <footer>
+      Nothing opens unless this machine has the <code>ccode://</code> handler
+      installed — see <code>windows/install.sh</code> in the repo. On a phone,
+      copy the command.
+    </footer>
+  </section>
+
+  <!-- Converter view: shown when there is no fragment -->
+  <section id="convert" hidden>
+    <div class="card">
+      <div class="label">Session id, or any line containing one</div>
+      <textarea id="input" spellcheck="false" placeholder="c --resume 01128a7a-ff8a-4ebd-bbca-4c2b16992599"></textarea>
+      <p class="err out" id="error" hidden></p>
+    </div>
+    <div class="card" id="result" hidden>
+      <div class="label">Link for your notes</div>
+      <p class="out" id="out-link"></p>
+      <div class="row">
+        <button data-copy="out-link">Copy link</button>
+        <button data-copy="out-cmd">Copy command</button>
+      </div>
+      <p class="out sub" id="out-cmd" style="margin-top:.7rem"></p>
+    </div>
+    <footer>
+      The session id rides in the link's <code>#fragment</code>, which browsers
+      never send to a server — this page is hosted publicly but never learns
+      which session you opened.
+    </footer>
+  </section>
 </main>
-<script type="module" src="app.js"></script>
-<script>
-  // Non-fatal by design: without the worker the app still runs, it just loses
-  // its offline fallback.
-  if ("serviceWorker" in navigator) {
-    window.addEventListener("load", function () {
-      navigator.serviceWorker.register("sw.js").catch(function () {});
+
+<script type="module">
+  import { extract, linkFor, uriFor, commandFor } from "./cclink.js";
+
+  const base = location.origin + location.pathname.replace(/\/index\.html$/, "").replace(/\/$/, "");
+  const $ = (id) => document.getElementById(id);
+
+  // Copy buttons, shared by both views.
+  document.addEventListener("click", (ev) => {
+    const btn = ev.target.closest("[data-copy]");
+    if (!btn) return;
+    navigator.clipboard.writeText($(btn.dataset.copy).textContent).then(() => {
+      const was = btn.textContent;
+      btn.textContent = "Copied";
+      setTimeout(() => { btn.textContent = was; }, 1200);
     });
+  });
+
+  const fragment = location.hash.startsWith("#s=") ? location.hash.slice(3) : "";
+
+  if (fragment) {
+    let id;
+    try {
+      id = extract(fragment, base);
+    } catch (err) {
+      $("sub").textContent = "That link does not carry a Claude Code session id.";
+      $("sub").className = "sub err";
+      throw err;
+    }
+    const uri = uriFor(id);
+    $("bounce-id").textContent = id;
+    $("bounce-cmd").textContent = commandFor(id);
+    $("bounce-link").href = uri;
+    $("bounce").hidden = false;
+    // Redirect after paint, so the fallback is already on screen when the OS
+    // dialog appears — or when nothing happens at all.
+    requestAnimationFrame(() => { location.href = uri; });
+  } else {
+    $("convert").hidden = false;
+    const input = $("input");
+    const render = () => {
+      const raw = input.value.trim();
+      $("error").hidden = true;
+      if (!raw) { $("result").hidden = true; return; }
+      try {
+        const id = extract(raw, base);
+        $("out-link").textContent = linkFor(id, base);
+        $("out-cmd").textContent = commandFor(id);
+        $("result").hidden = false;
+      } catch (err) {
+        $("result").hidden = true;
+        $("error").textContent = err.message;
+        $("error").hidden = false;
+      }
+    };
+    input.addEventListener("input", render);
+    input.focus();
   }
 </script>
 </body>

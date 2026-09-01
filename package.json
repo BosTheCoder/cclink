@@ -1,0 +1,10 @@
+{
+  "name": "cclink",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Clickable links that resume a Claude Code session",
+  "scripts": {
+    "test": "node --test test/*.test.js"
+  }
+}

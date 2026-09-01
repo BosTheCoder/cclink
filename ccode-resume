@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# The WSL end of the ccode:// handler. Windows calls this with a session id;
+# ccl.py resolves the directory the session ran in and execs claude there.
+#
+# Everything this needs to be safe happens in ccl.py: the id is re-validated
+# here even though the PowerShell side already matched it, because a terminal
+# that trusts its caller is a terminal that runs whatever its caller was told.
+set -uo pipefail
+
+HERE="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
+
+# Written by windows/install.sh from the shell you ran it in. Windows launches
+# us via `wsl.exe --`, which does not read any shell config, so without this
+# the PATH here has neither claude nor anything else you have installed.
+# shellcheck source=/dev/null
+[ -f "$HERE/.ccode-env" ] && . "$HERE/.ccode-env"
+
+python3 "$HERE/ccl.py" --resume "${1:-}"
+status=$?
+
+# 78 means we never reached claude — the session is unknown, or its directory
+# is not on this machine. That message is the whole point of the tab, so hold
+# it open. Any other code is claude's own, and the tab can close with it.
+if [ "$status" -eq 78 ]; then
+  echo
+  read -r -p "Press Enter to close. " _
+fi
+exit "$status"
